@@ -77,7 +77,9 @@ test_X.todense()
 
 print "feature extraction done"
 
-###############     Learning and prediction        ############################################
+
+##########  Concate numerical features  ####################################
+
 age_train = train_o['age'].values
 age_test = test_o['age'].values
 hours_train = train_o['hours_per_week'].values
@@ -110,6 +112,8 @@ test_X = hstack((test_X,cl_test))
 
 	
 print train_X.shape
+
+###############     Learning and prediction        ############################################
 
 gbm = xgb.XGBClassifier(max_depth=5, n_estimators=300, learning_rate=0.05).fit(train_X, train_y)
 predictions = gbm.predict(test_X)
