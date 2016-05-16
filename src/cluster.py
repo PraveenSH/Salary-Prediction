@@ -1,40 +1,82 @@
 import pandas as pd
-import xgboost as xgb
-from sklearn.preprocessing import LabelEncoder
-from sklearn import linear_model
 import numpy as np
-from sklearn.naive_bayes import GaussianNB
-from sklearn.naive_bayes import MultinomialNB
-from sklearn.cluster import KMeans
+import scipy as sc
+import math
+from collections import defaultdict
+from heapq import nlargest
+from operator import itemgetter
 
-train_df = pd.read_csv('../input/train-red.csv', header=0)
-test_df = pd.read_csv('../input/test-red.csv', header=0)
+sz_x = 500
+sz_y = 1000
+def scale(x,y):
+	dx = math.floor(sz_x*x/10)
+	if dx < 0:
+		dx = 0
+	if dx >= sz_x:
+	        dx = sz_x-1
 
+	dy = math.floor(sz_y*y/10)
+	if dy < 0:
+		dy = 0
+	if dy >= sz_y:
+		dy = sz_y-1
 
-train_y = train_df['quality']
-test_y = test_df['quality']
+	return dx, dy
 
-train_df.drop(['quality'],axis=1, inplace=True)
-train_X = train_df.as_matrix()
+###########  Data Loading ##################################################
+train_df = open("../input/train_sample.csv", "r")
+test_df = open("../input/test_sample.csv", "r")
+train_df.readline()
+test_df.readline()
 
+########## Data cleaning ##################################################
+cluster = defaultdict(lambda: defaultdict(int))
+cluster_sorted = dict()
 
-test_df.drop(['quality'],axis=1, inplace=True)
-test_X = test_df.as_matrix()
+while True:
+	line = train_df.readline().strip()
+	if line == '':
+		break
+	row = line.split(',')
+	X = float(row[1])
+	Y = float(row[2])
+	place_id = row[5]
+	dx,dy = scale(X,Y)
+	cluster[(dx,dy)][place_id] += 1
 
+train_df.close()
 
-k_means = KMeans(n_clusters=10, init='k-means++')
-train_pred = k_means.fit_predict(test_X)
-label_quality = {}
-for i in range(0,len(train_pred)):
-	label_quality[train_pred[i]] = train_y[i]
-test_pred = k_means.predict(test_X)
-predictions = []
-for i in range(0,len(test_pred)):
-	predictions.append(label_quality[test_pred[i]])
-_error = open("error.log",'w')
-_error.write("actual, predicted, error\n")
-for i in range(0,len(predictions)):
-	_error.write(str(test_y[i])+","+str(predictions[i])+","+str(abs(float(predictions[i])-float(test_y[i])))+"\n")
+for el in cluster:
+        cluster_sorted[el] = nlargest(3, sorted(cluster[el].items()), key=itemgetter(1))
 
-_error.flush()
-_error.close()
+_submit = open("submit_sample.csv",'w')
+_submit.write("row_id,place_id\n")
+while True:
+	line = test_df.readline().strip()
+	if line == '':
+		break
+	row = line.split(',')
+	row_id = row[0]
+	X = float(row[1])
+	Y = float(row[2])
+
+	dx,dy = scale(X,Y)
+	print str(X)+" "+str(Y)+"==>"+str(dx)+" "+str(dy)
+	_submit.write(str(row_id)+",")
+	seen = []
+	tmp = (dx,dy)
+	if tmp in cluster_sorted:
+		frequent = cluster_sorted[tmp]
+		for i in range(len(frequent)):
+			if frequent[i][0] in seen:
+				continue;
+			if len(seen)==3:
+				break;
+			
+			
+			_submit.write(" "+str(frequent[i][0]))
+			seen.append(frequent[i][0])
+	_submit.write("\n")
+
+_submit.flush()
+_submit.close()
